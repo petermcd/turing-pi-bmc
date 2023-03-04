@@ -1,26 +1,31 @@
+"""Module to hold Cluster."""
 from ipaddress import IPv4Address
-import requests
 
-from bmc.node import Node
+from bmc.cluster_request import ClusterRequest
 from bmc.exceptions import RequestException
+from bmc.node import Node
+from bmc.sdcard import SDCard
+from bmc.turing_pi_types import TuringPiMode
+from bmc.usb_mode import USBMode
 
 
-class Cluster(object):
+class Cluster:
     """Class to interact with the management API of the Turing Pi 2."""
+
     __slots__ = (
-        '_ip',
-        '_nodes',
+        "_cr",
+        "_nodes",
     )
 
-    def __init__(self, ip: IPv4Address):
+    def __init__(self, cluster_ip: IPv4Address):
         """
         Initialise Cluster.
 
         Args:
-            ip: Instance of IPv4Address representing the Ip of the Turing Pi board.
+            cluster_ip: Instance of IPv4Address representing the Ip of the Turing Pi board.
         """
-        self._ip = ip
-        self._nodes = list()
+        self._cr = ClusterRequest(cluster_ip=cluster_ip)
+        self._nodes: list[Node] = []
         self.fetch_nodes()
 
     def fetch_nodes(self):
@@ -29,16 +34,78 @@ class Cluster(object):
 
         List of Nodes:
         """
-        self._nodes = list()
-        url = 'bmc?opt=get&type=nodeinfo'
+        self._nodes = []
+        url = "bmc?opt=get&type=nodeinfo"
         try:
-            response = self._make_request(url)
+            response = self._cr.make_request(url=url)
         except RequestException:
             return False
         for slot_id, node_name in enumerate(response):
             # We add 1 to the slot_id as Turing Pi references slot 0 as slot 1
-            current_node = Node(slot=slot_id+1, name=node_name, description=response[node_name], cluster_ip=self._ip)
+            current_node = Node(
+                slot=slot_id + 1,
+                name=node_name,
+                description=response[node_name],
+                cr=self._cr,
+            )
             self._nodes.append(current_node)
+
+    def fetch_power(self):
+        """
+        Fetch nodes details from the cluster.
+
+        List of Nodes:
+        """
+        url = "bmc?opt=get&type=power"
+        try:
+            response = self._cr.make_request(url=url)
+        except RequestException:
+            return False
+        for slot_id, node_name in enumerate(response):
+            self._nodes[slot_id].powered_on = bool(response[node_name])
+
+    def get_sdcard(self) -> SDCard:
+        """
+        Get SDCard data.
+
+        Returns:
+            True on success otherwise False
+        """
+        url = "bmc?opt=get&type=sdcard"
+        try:
+            response = self._cr.make_request(url=url)
+        except RequestException:
+            return SDCard(
+                free=0,
+                used=0,
+                total=0,
+            )
+        return SDCard(
+            free=response["free"],
+            used=response["use"],
+            total=response["total"],
+        )
+
+    def get_usb_mode(self) -> USBMode:
+        """
+        Get USB mode.
+
+        Returns:
+            USBMode with mode and node values
+        """
+        url = "bmc?opt=get&type=usb"
+        try:
+            response = self._cr.make_request(url=url)
+        except RequestException:
+            return USBMode(
+                node=self._nodes[0],
+                mode=TuringPiMode.Host,
+            )
+
+        return USBMode(
+            node=self._nodes[response["node"]],
+            mode=TuringPiMode(response["mode"]),
+        )
 
     def reset_network(self) -> bool:
         """
@@ -47,12 +114,37 @@ class Cluster(object):
         Return:
             True on success otherwise False
         """
-        url = 'bmc?opt=set&type=network&cmd=reset'
+        url = "bmc?opt=set&type=network&cmd=reset"
         try:
-            response = self._make_request(url)
+            response = self._cr.make_request(url=url)
         except RequestException:
             return False
-        if response.lower() == 'ok':
+        if response.lower() == "ok":
+            return True
+        return False
+
+    def set_usb_mode(self, usbmode: USBMode):
+        """
+        Set USB mode on a node.
+
+        Args:
+            usbmode: USBMode containing details for mode and node
+
+        Returns:
+            True on success otherwise False
+        """
+        url = (
+            f"bmc?opt=set&type=usb&mode={usbmode.mode.value}&node={usbmode.node.slot-1}"
+        )
+        try:
+            response = self._cr.make_request(url=url)
+        except RequestException:
+            return False
+        try:
+            result = response["result"]
+        except KeyError:
+            return False
+        if result == "ok":
             return True
         return False
 
@@ -66,15 +158,17 @@ class Cluster(object):
         Returns:
             True on success otherwise False
         """
-        node_list = ''
+        node_list = ""
         for node in nodes:
-            node_list += f'&{node.name}=1'
-        url = f'bmc?opt=set&type=power{node_list}'
+            node_list += f"&{node.name}=1"
+        url = f"bmc?opt=set&type=power{node_list}"
         try:
-            response = self._make_request(url)
+            response = self._cr.make_request(url=url)
         except RequestException:
             return False
-        if response.lower() == 'ok':
+        if response.lower() == "ok":
+            for node_item in nodes:
+                node_item.powered_on = True
             return True
         return False
 
@@ -88,15 +182,17 @@ class Cluster(object):
         Returns:
             True on success otherwise False
         """
-        node_list = ''
+        node_list = ""
         for node in nodes:
-            node_list += f'&{node.name}=0'
-        url = f'bmc?opt=set&type=power{node_list}'
+            node_list += f"&{node.name}=0"
+        url = f"bmc?opt=set&type=power{node_list}"
         try:
-            response = self._make_request(url)
+            response = self._cr.make_request(url=url)
         except RequestException:
             return False
-        if response.lower() == 'ok':
+        if response.lower() == "ok":
+            for node_item in nodes:
+                node_item.powered_on = False
             return True
         return False
 
@@ -121,30 +217,3 @@ class Cluster(object):
         List of Nodes.
         """
         return self._nodes
-
-    def _make_request(self, url: str):
-        """
-        Make a request to the cluster
-
-        Args:
-            url: The url for the request
-
-        Raises:
-            RequestException: On incorrect response code or invalid response
-
-        Returns:
-            Response from the request
-        """
-        full_url = f'http://{self._ip}/api/{url}'
-        req = requests.post(url=full_url)
-        if req.status_code != 200:
-            raise RequestException('Non 200 response received')
-        try:
-            response = req.json()['response'][0]
-        except:
-            raise RequestException('Invalid response received')
-        return response
-
-ip = IPv4Address('192.168.1.175')
-c = Cluster(ip=ip)
-c.stop_nodes(c.nodes)
