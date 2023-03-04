@@ -1,19 +1,20 @@
-import requests
-from ipaddress import IPv4Address
-
+"""Module to hold Node."""
+from bmc.cluster_request import ClusterRequest
 from bmc.exceptions import RequestException
 
 
-class Node(object):
+class Node:
     """Class to manage Nodes."""
+
     __slots__ = (
-        '_cluster_ip',
-        '_description',
-        '_name',
-        '_slot',
+        "_cr",
+        "_description",
+        "_name",
+        "_power",
+        "_slot",
     )
 
-    def __init__(self, slot: int, name: str, description: str, cluster_ip: IPv4Address):
+    def __init__(self, slot: int, name: str, description: str, cr: ClusterRequest):
         """
         Initialise Node.
 
@@ -21,12 +22,13 @@ class Node(object):
             slot: Slot number
             name: Node name given by the cluster
             description: Description provided by the cluster
-            cluster_ip
+            cr: ClusterRequest instance
         """
-        self._cluster_ip = cluster_ip
+        self._cr = cr
         self._description = description
         self._name = name
         self._slot = slot
+        self._power = False
 
     @property
     def description(self) -> str:
@@ -65,12 +67,13 @@ class Node(object):
         Returns:
             True on success otherwise False
         """
-        url = f'bmc?opt=set&type=power&{self.name}=1'
+        url = f"bmc?opt=set&type=power&{self.name}=1"
         try:
-            response = self._make_request(url)
+            response = self._cr.make_request(url)
         except RequestException:
             return False
-        if response.lower() == 'ok':
+        if response.lower() == "ok":
+            self.powered_on = True
             return True
         return False
 
@@ -81,34 +84,32 @@ class Node(object):
         Returns:
             True on success otherwise False
         """
-        url = f'bmc?opt=set&type=power&{self.name}=0'
+        url = f"bmc?opt=set&type=power&{self.name}=0"
         try:
-            response = self._make_request(url)
+            response = self._cr.make_request(url)
         except RequestException:
             return False
-        if response.lower() == 'ok':
+        if response.lower() == "ok":
+            self.powered_on = False
             return True
         return False
 
-    def _make_request(self, url: str):
+    @property
+    def powered_on(self) -> bool:
         """
-        Make a request to the cluster
-
-        Args:
-            url: The url for the request
-
-        Raises:
-            RequestException: On incorrect response code or invalid response
+        Identify if the node has power.
 
         Returns:
-            Response from the request
+            True if powered on otherwise False
         """
-        full_url = f'http://{self._cluster_ip}/api/{url}'
-        req = requests.post(url=full_url)
-        if req.status_code != 200:
-            raise RequestException('Non 200 response received')
-        try:
-            response = req.json()['response'][0]
-        except:
-            raise RequestException('Invalid response received')
-        return response
+        return self._power
+
+    @powered_on.setter
+    def powered_on(self, powered_on: bool):
+        """
+        Set if the node has power.
+
+        Args:
+            powered_on: True if powered on otherwise False
+        """
+        self._power = powered_on
