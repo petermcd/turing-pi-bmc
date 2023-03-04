@@ -119,9 +119,7 @@ class Cluster:
             response = self._cr.make_request(url=url)
         except RequestException:
             return False
-        if response.lower() == "ok":
-            return True
-        return False
+        return response.lower() == "ok"
 
     def set_usb_mode(self, usbmode: USBMode):
         """
@@ -144,9 +142,7 @@ class Cluster:
             result = response["result"]
         except KeyError:
             return False
-        if result == "ok":
-            return True
-        return False
+        return result == "ok"
 
     def start_nodes(self, nodes: list[Node]) -> bool:
         """
@@ -158,9 +154,7 @@ class Cluster:
         Returns:
             True on success otherwise False
         """
-        node_list = ""
-        for node in nodes:
-            node_list += f"&{node.name}=1"
+        node_list = "".join(f"&{node.name}=1" for node in nodes)
         url = f"bmc?opt=set&type=power{node_list}"
         try:
             response = self._cr.make_request(url=url)
@@ -182,9 +176,7 @@ class Cluster:
         Returns:
             True on success otherwise False
         """
-        node_list = ""
-        for node in nodes:
-            node_list += f"&{node.name}=0"
+        node_list = "".join(f"&{node.name}=0" for node in nodes)
         url = f"bmc?opt=set&type=power{node_list}"
         try:
             response = self._cr.make_request(url=url)
