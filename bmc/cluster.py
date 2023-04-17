@@ -1,5 +1,9 @@
 """Module to hold Cluster."""
 from ipaddress import IPv4Address
+from xml.etree import ElementTree
+
+import requests
+import semver
 
 from bmc.cluster_request import ClusterRequest
 from bmc.exceptions import RequestException
@@ -14,6 +18,9 @@ class Cluster:
 
     __slots__ = (
         "_cr",
+        "_latest_version",
+        "_installed_version",
+        "_mac_address",
         "_nodes",
     )
 
@@ -25,6 +32,9 @@ class Cluster:
             cluster_ip: Instance of IPv4Address representing the Ip of the Turing Pi board.
         """
         self._cr = ClusterRequest(cluster_ip=cluster_ip)
+        self._installed_version: str = ""
+        self._latest_version: str = ""
+        self._mac_address: str = ""
         self._nodes: list[Node] = []
         self.fetch_nodes()
 
@@ -202,6 +212,55 @@ class Cluster:
         return False
 
     @property
+    def installed_version(self) -> str:
+        """
+        Fetch the installed version from the cluster.
+
+        Returns:
+            Latest version as a string.
+        """
+        if not self._installed_version:
+            self._fetch_other_node_info()
+        return self._installed_version
+
+    @property
+    def latest_version(self) -> str:
+        """
+        Fetch the latest available version of BMC from Github.
+
+        Returns:
+            Latest version as a string.
+        """
+        if not self._latest_version:
+            url: str = "https://github.com/wenyi0421/turing-pi/releases.atom"
+            try:
+                response = requests.get(url=url)
+            except RequestException:
+                return ""
+            root = ElementTree.fromstring(response.text)
+            entries = root.findall("{http://www.w3.org/2005/Atom}entry")
+            latest_entry = entries[0]
+            latest_version = latest_entry.findall("{http://www.w3.org/2005/Atom}title")[
+                0
+            ].text
+            if not latest_version:
+                return ""
+            self._latest_version = latest_version[1:]
+        return self._latest_version
+
+    @property
+    def mac_address(self) -> str:
+        """
+        Fetch the cluster mac address.
+
+        Returns:
+            Cluster mac address.
+        """
+        if not self._mac_address:
+            self._fetch_other_node_info()
+        return self._mac_address
+
+    @property
     def nodes(self) -> list[Node]:
         """
         Property for Nodes.
@@ -209,3 +268,27 @@ class Cluster:
         List of Nodes.
         """
         return self._nodes
+
+    @property
+    def update_available(self) -> bool:
+        """
+        Check to see if a new version of BMC is available.
+
+        Returns:
+            True if update available otherwise False.
+        """
+        current_version: str = self.installed_version
+        latest_version: str = self.latest_version
+        return semver.compare(current_version, latest_version) < 0
+
+    def _fetch_other_node_info(self):
+        """Fetch data from the other info api."""
+        url = "bmc?opt=get&type=other"
+        try:
+            response = self._cr.make_request(url=url)
+        except RequestException:
+            return ""
+        if "version" in response:
+            self._installed_version = response["version"]
+        if "mac" in response:
+            self._mac_address = response["mac"]
