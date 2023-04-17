@@ -22,7 +22,7 @@ class ClusterRequest:
 
     def make_request(self, url: str):
         """
-        Make a request to the cluster.
+        Make a request to the cluster using the API.
 
         Args:
             url: The url for the request
