@@ -240,12 +240,12 @@ class Cluster:
             root = ElementTree.fromstring(response.text)
             entries = root.findall("{http://www.w3.org/2005/Atom}entry")
             latest_entry = entries[0]
-            latest_version = latest_entry.findall("{http://www.w3.org/2005/Atom}title")[
-                0
-            ].text
-            if not latest_version:
+            if latest_version := latest_entry.findall(
+                "{http://www.w3.org/2005/Atom}title"
+            )[0].text:
+                self._latest_version = latest_version[1:]
+            else:
                 return ""
-            self._latest_version = latest_version[1:]
         return self._latest_version
 
     @property
