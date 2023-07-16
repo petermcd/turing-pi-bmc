@@ -232,7 +232,7 @@ class Cluster:
             Latest version as a string.
         """
         if not self._latest_version:
-            url: str = "https://github.com/wenyi0421/turing-pi/releases.atom"
+            url: str = "https://github.com/turing-machines/BMC-Firmware/releases.atom"
             try:
                 response = requests.get(url=url)
             except RequestException:
