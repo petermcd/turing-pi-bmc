@@ -39,6 +39,6 @@ class ClusterRequest:
             raise RequestException("Non 200 response received")
         try:
             response = req.json()["response"][0]
-        except (IndexError, KeyError):
-            raise RequestException("Invalid response received")
+        except (IndexError, KeyError) as exc:
+            raise RequestException("Invalid response received") from exc
         return response
