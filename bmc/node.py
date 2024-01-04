@@ -1,30 +1,25 @@
 """Module to hold Node."""
-from bmc.cluster_request import ClusterRequest
-from bmc.exceptions import RequestException
 
 
 class Node:
     """Class to manage Nodes."""
 
     __slots__ = (
-        "_cr",
         "_description",
         "_name",
         "_power",
         "_slot",
     )
 
-    def __init__(self, slot: int, name: str, description: str, cr: ClusterRequest):
+    def __init__(self, slot: int, name: str, description: str):
         """
-        Initialise Node.
+        Initialize Node.
 
         Args:
-            slot: Slot number
-            name: Node name given by the cluster
-            description: Description provided by the cluster
-            cr: ClusterRequest instance
+            slot: Slot number.
+            name: Node name given by the cluster.
+            description: Description provided by the cluster.
         """
-        self._cr = cr
         self._description = description
         self._name = name
         self._slot = slot
@@ -39,6 +34,18 @@ class Node:
             Node description as a string
         """
         return self._description
+
+    def flash(self, file_path: str) -> bool:
+        """
+        Flash the given file to the node.
+
+        Args:
+            file_path: Path to the file to flash
+
+        Raises:
+            NotImplementedError: Functionality not created yet.
+        """
+        raise NotImplementedError
 
     @property
     def name(self) -> str:
@@ -59,40 +66,6 @@ class Node:
             Node slot as an int
         """
         return self._slot
-
-    def start_nodes(self) -> bool:
-        """
-        Start the node.
-
-        Returns:
-            True on success otherwise False
-        """
-        url = f"bmc?opt=set&type=power&{self.name}=1"
-        try:
-            response = self._cr.make_request(url)
-        except RequestException:
-            return False
-        if response.lower() == "ok":
-            self.powered_on = True
-            return True
-        return False
-
-    def stop_nodes(self) -> bool:
-        """
-        Stop the given node/nodes.
-
-        Returns:
-            True on success otherwise False
-        """
-        url = f"bmc?opt=set&type=power&{self.name}=0"
-        try:
-            response = self._cr.make_request(url)
-        except RequestException:
-            return False
-        if response.lower() == "ok":
-            self.powered_on = False
-            return True
-        return False
 
     @property
     def powered_on(self) -> bool:
