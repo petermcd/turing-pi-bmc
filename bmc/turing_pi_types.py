@@ -12,5 +12,5 @@ class PowerStatus(Enum):
 class TuringPiMode(Enum):
     """Enum for available node modes."""
 
-    Host = 0
-    Device = 1
+    Host = "Host"
+    Device = "Device"
