@@ -14,7 +14,7 @@ from ipaddress import IPv4Address
 from bmc.cluster import Cluster
 
 cluster = Cluster(cluster_ip=IPv4Address('192.168.1.170'), verify=False)
-sdcard = cluster.get_sdcard()
+sdcard = cluster.nodes
 print(sdcard)
 ```
 
@@ -26,11 +26,6 @@ https://docs.turingpi.com/docs/turing-pi2-bmc-api
 - [ ] Add support usb_boot
 - [ ] Add support clear_usb_boot
 - [ ] Add support node_to_msd
-- [ ] Add support reboot
-- [ ] Add support reload
-- [ ] Add support reset
 - [ ] Add support uart
-- [ ] Add support about
-- [ ] Add support info
 - [ ] Add support firmware
 - [ ] Add support flash
