@@ -1,4 +1,5 @@
 """Session to the cluster."""
+
 from ipaddress import IPv4Address
 from typing import Any
 

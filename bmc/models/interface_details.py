@@ -1,12 +1,13 @@
 """IPDetails model."""
+
 from dataclasses import dataclass
 from ipaddress import IPv4Address
 
 
 @dataclass
-class IPDetails:
+class InterfaceDetails:
     """
-    IPDetails model.
+    InterfaceDetails model.
 
     Attributes:
         _device: The device name.

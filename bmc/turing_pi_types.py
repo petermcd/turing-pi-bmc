@@ -1,4 +1,5 @@
 """Module to hold enums."""
+
 from enum import Enum
 
 
@@ -10,49 +11,27 @@ class PowerStatus(Enum):
 
 
 class TuringPiMode(Enum):
-    """
-    Enum for available Turing Pi modes.
+    """Enum for available Turing Pi modes."""
 
-    Attributes:
-        Host: Host mode.
-        Device: Device mode.
-    """
-
-    Host = "Host"
-    Device = "Device"
+    host = "host"
+    device = "device"
 
 
-TuringPiMode2: dict[int, dict[str, str]] = {
-    0: {
-        "mode": "Host",
-        "router": "USB-A",
-    },
-    1: {
-        "mode": "Device",
-        "router": "USB-A",
-    },
-    2: {
-        "mode": "Flash (Host)",
-        "router": "USB-A",
-    },
-    3: {
-        "mode": "Flash (Device)",
-        "router": "USB-A",
-    },
-    4: {
-        "mode": "Host",
-        "router": "BMC",
-    },
-    5: {
-        "mode": "Device",
-        "router": "BMC",
-    },
-    6: {
-        "mode": "Flash (Host)",
-        "router": "BMC",
-    },
-    7: {
-        "mode": "Flash (Device)",
-        "router": "BMC",
-    },
-}
+class TuringPiRoute(Enum):
+    """Enum for available Turing Pi modes."""
+
+    bmc = "bmc"
+    usb_a = "usba"
+
+
+class TuringPiMode2(Enum):
+    """Enum for available Turing Pi modes as used in the set usb mode api call."""
+
+    host_usb_a = 0
+    device_usb_a = 1
+    flash_host_usb_a = 2
+    flash_device_usb_a = 3
+    host_bmc = 4
+    device_bmc = 5
+    flash_host_bmc = 6
+    flash_device_bmc = 7

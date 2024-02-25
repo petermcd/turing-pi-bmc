@@ -1,6 +1,8 @@
 """Class to handle the session with the BMC API."""
+
 from bmc.exceptions import RequestException
 from bmc.session import Session
+from bmc.turing_pi_types import TuringPiMode2
 
 
 class Node:
@@ -59,6 +61,24 @@ class Node:
         """
         return self._name
 
+    def clear_usb_boot(self) -> bool:
+        """
+        Clear USB Boot for the node.
+
+        Returns:
+            True on success otherwise False.
+        """
+        url = f"bmc?opt=set&type=clear_usb_boot&node={self.slot - 1}"
+        try:
+            response = self._session.make_request(url=url)
+        except RequestException:
+            return False
+        try:
+            result = response["result"]
+        except KeyError:
+            return False
+        return result == "ok"
+
     @property
     def description(self) -> str:
         """
@@ -102,29 +122,50 @@ class Node:
     @powered_on.setter
     def powered_on(self, powered_on: bool) -> None:
         """
-        Set if the node has power.
+        Set if the node has power. This does not start/stop a node.
 
         Args:
             powered_on: True if powered on otherwise False.
         """
         self._power = powered_on
 
-    def restart(self) -> bool:
+    def set_mass_storage_device(self) -> bool:
         """
-        Restart the node.
+        Set node as a mass storage devicee.
+
+        Raises:
+            RequestException: If there is an error making the request.
 
         Returns:
             True on success otherwise False.
         """
-        url = f"bmc?opt=set&type=reset&node={self._slot}"
+        url = f"bmc?opt=set&type=node_to_msd&node={self._slot - 1}"
         try:
             response = self._session.make_request(url=url)
         except RequestException:
             return False
-        if response["result"].lower() == "ok":
-            self.powered_on = True
-            return True
-        return False
+        return response["result"].lower() == "ok"
+
+    def set_usb_mode(self, usbmode: TuringPiMode2) -> bool:
+        """
+        Set USB mode on the node.
+
+        Args:
+            usbmode: USB mode from TuringPiMode2.
+
+        Returns:
+            True on success otherwise False.
+        """
+        url = f"bmc?opt=set&type=usb&mode={usbmode.value}&node={self.slot - 1}"
+        try:
+            response = self._session.make_request(url=url)
+        except RequestException:
+            return False
+        try:
+            result = response["result"]
+        except KeyError:
+            return False
+        return result == "ok"
 
     def start(self) -> bool:
         """
@@ -133,7 +174,7 @@ class Node:
         Returns:
             True on success otherwise False.
         """
-        url = f"bmc?opt=set&type=power{self._name}=1"
+        url = f"bmc?opt=set&type=power&{self._name}=1"
         try:
             response = self._session.make_request(url=url)
         except RequestException:
@@ -150,7 +191,7 @@ class Node:
         Returns:
             True on success otherwise False.
         """
-        url = f"bmc?opt=set&type=power{self._name}=0"
+        url = f"bmc?opt=set&type=power&{self._name}=0"
         try:
             response = self._session.make_request(url=url)
         except RequestException:
@@ -159,3 +200,21 @@ class Node:
             self.powered_on = False
             return True
         return False
+
+    def usb_boot(self) -> bool:
+        """
+        USB Boot the node.
+
+        Returns:
+            True on success otherwise False.
+        """
+        url = f"bmc?opt=set&type=usb_boot&node={self.slot - 1}"
+        try:
+            response = self._session.make_request(url=url)
+        except RequestException:
+            return False
+        try:
+            result = response["result"]
+        except KeyError:
+            return False
+        return result == "ok"

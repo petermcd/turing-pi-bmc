@@ -1,8 +1,9 @@
 """USB Mode Model."""
+
 from dataclasses import dataclass
 
 from bmc.models.node import Node
-from bmc.turing_pi_types import TuringPiMode
+from bmc.turing_pi_types import TuringPiMode, TuringPiRoute
 
 
 @dataclass
@@ -17,3 +18,4 @@ class USBMode:
 
     node: Node
     mode: TuringPiMode
+    route: TuringPiRoute

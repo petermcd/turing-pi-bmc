@@ -1,4 +1,5 @@
 """About model."""
+
 from datetime import datetime
 
 

@@ -1,7 +1,8 @@
 """Info model."""
+
 from ipaddress import IPv4Address
 
-from bmc.models.ip_details import IPDetails
+from bmc.models.interface_details import InterfaceDetails
 from bmc.models.storage_details import StorageDetails
 
 
@@ -10,12 +11,12 @@ class Info:
     Info model.
 
     Attributes:
-        _ip: The IP details.
+        _interface: The IP details.
         _storage: The storage details.
     """
 
     __slots__ = (
-        "_ip",
+        "_interface",
         "_storage",
     )
 
@@ -26,13 +27,13 @@ class Info:
         Args:
             data: A dictionary containing the response from the BMC.
         """
-        self._ip: list[IPDetails] = []
+        self._interface: list[InterfaceDetails] = []
         self._storage: list[StorageDetails] = []
-        self._ip.extend(
-            IPDetails(
+        self._interface.extend(
+            InterfaceDetails(
                 device=ip_details["device"],
                 ip=IPv4Address(ip_details["ip"]),
-                mac=ip_details["mac"],
+                mac=ip_details["mac"].strip(),
             )
             for ip_details in data["ip"]
         )

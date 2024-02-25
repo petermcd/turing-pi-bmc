@@ -1,4 +1,5 @@
 """Class to interact with the management API of the Turing Pi 2."""
+
 from ipaddress import IPv4Address
 from typing import Optional
 from xml.etree import ElementTree
@@ -15,7 +16,7 @@ from bmc.models.other import Other
 from bmc.models.storage_details import StorageDetails
 from bmc.models.usb_mode import USBMode
 from bmc.session import Session
-from bmc.turing_pi_types import TuringPiMode
+from bmc.turing_pi_types import TuringPiMode, TuringPiRoute
 
 urllib3.disable_warnings()
 
@@ -75,17 +76,31 @@ class Cluster:
             self._about = About(data=self._session.make_request(url=url)["result"])
         return self._about
 
-    def info(self) -> Info:
+    def fetch_power(self) -> list[Node]:
         """
-        Fetch about details from the cluster.
+        Fetch power status of the nodes.
+
+        Raises:
+            RequestException: If there is an error making the request.
 
         Returns:
-            About object.
+            List of nodes.
         """
-        if not self._info:
-            url = "bmc?opt=get&type=info"
-            self._info = Info(data=self._session.make_request(url=url)["result"])
-        return self._info
+        url = "bmc?opt=get&type=power"
+
+        response = self._session.make_request(url=url)
+        for slot_id, node_name in enumerate(response["result"][0]):
+            if slot_id not in self._nodes:
+                self._nodes.append(
+                    Node(
+                        session=self._session,
+                        slot=slot_id,
+                        name=node_name,
+                        description="",
+                    )
+                )
+            self._nodes[slot_id].powered_on = response["result"][0][node_name] == "1"
+        return self._nodes
 
     def get_usb_mode(self) -> USBMode:
         """
@@ -102,27 +117,43 @@ class Cluster:
         except RequestException:
             return USBMode(
                 node=self._nodes[0],
-                mode=TuringPiMode.Host,
+                mode=TuringPiMode.host,
+                route=TuringPiRoute.bmc,
             )
         node_name = int(response["result"][0]["node"].replace("Node ", "")) - 1
         return USBMode(
             node=self._nodes[node_name],
-            mode=TuringPiMode(response["result"][0]["mode"]),
+            mode=TuringPiMode(response["result"][0]["mode"].lower()),
+            route=TuringPiRoute(
+                response["result"][0]["route"].lower().replace("-", "")
+            ),
         )
+
+    def info(self) -> Info:
+        """
+        Fetch about details from the cluster.
+
+        Returns:
+            About object.
+        """
+        if not self._info:
+            url = "bmc?opt=get&type=info"
+            self._info = Info(data=self._session.make_request(url=url)["result"])
+        return self._info
 
     def latest_version(self) -> str:
         """
         Fetch the latest available version of BMC from GitHub.
+
+        Raises:
+            RequestException: If there is an error making the request.
 
         Returns:
             Latest version as a string.
         """
         if not self._latest_version:
             url: str = "https://github.com/turing-machines/BMC-Firmware/releases.atom"
-            try:
-                response = requests.get(url=url)
-            except RequestException:
-                return ""
+            response = requests.get(url=url)
             root = ElementTree.fromstring(response.text)
             entries = root.findall("{http://www.w3.org/2005/Atom}entry")
             latest_entry = entries[0]
@@ -134,40 +165,7 @@ class Cluster:
                 return ""
         return self._latest_version
 
-    def other(self) -> Other:
-        """Fetch data from the other info api."""
-        if not self._other:
-            url = "bmc?opt=get&type=other"
-            self._other = Other(data=self._session.make_request(url=url)["result"][0])
-        return self._other
-
-    def fetch_power(self) -> bool:
-        """
-        Fetch power status of the nodes.
-
-        Returns:
-            True on success otherwise False.
-        """
-        url = "bmc?opt=get&type=power"
-
-        try:
-            response = self._session.make_request(url=url)
-        except RequestException:
-            return False
-        for slot_id, node_name in enumerate(response["result"][0]):
-            if slot_id not in self._nodes:
-                self._nodes.append(
-                    Node(
-                        session=self._session,
-                        slot=slot_id,
-                        name=node_name,
-                        description="",
-                    )
-                )
-            self._nodes[slot_id].powered_on = response["result"][0][node_name] == "1"
-        return True
-
-    def network(self) -> bool:
+    def network_reset(self) -> bool:
         """
         Reset the Turing Pi 2 network.
 
@@ -192,6 +190,13 @@ class Cluster:
         if not self._nodes:
             self.fetch_power()
         return self._nodes
+
+    def other(self) -> Other:
+        """Fetch data from the other info api."""
+        if not self._other:
+            url = "bmc?opt=get&type=other"
+            self._other = Other(data=self._session.make_request(url=url)["result"][0])
+        return self._other
 
     def reload(self) -> bool:
         """
@@ -221,19 +226,6 @@ class Cluster:
             return False
         return response["result"].lower() == "ok"
 
-    @staticmethod
-    def restart_node(node: Node) -> bool:
-        """
-        Restart the given node/nodes.
-
-        Args:
-            node: List of nodes to restart.
-
-        Returns:
-            True on success otherwise False.
-        """
-        return node.restart()
-
     def sdcard(self) -> StorageDetails:
         """
         Get SDCard data.
@@ -257,27 +249,6 @@ class Cluster:
             total_bytes=response["result"][0]["total"],
             used_bytes=response["result"][0]["use"],
         )
-
-    def set_usb_mode(self, usbmode: USBMode) -> bool:
-        """
-        Set USB mode on a node.
-
-        Args:
-            usbmode: USBMode containing details for mode and node.
-
-        Returns:
-            True on success otherwise False.
-        """
-        url = f"bmc?opt=set&type=usb&mode={usbmode.mode.value}&node={usbmode.node.slot - 1}"
-        try:
-            response = self._session.make_request(url=url)
-        except RequestException:
-            return False
-        try:
-            result = response["result"]
-        except KeyError:
-            return False
-        return result == "ok"
 
     def start_nodes(self, nodes: list[Node]) -> bool:
         """
