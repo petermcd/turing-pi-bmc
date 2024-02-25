@@ -1,5 +1,5 @@
-"""Module to hold exceptions."""
+"""Exceptions for the bmc package."""
 
 
 class RequestException(Exception):
-    """Handle a request issue."""
+    """Exception for failed requests."""
