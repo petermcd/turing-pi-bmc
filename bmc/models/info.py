@@ -45,3 +45,13 @@ class Info:
             )
             for storage_details in data["storage"]
         )
+
+    @property
+    def interface(self) -> list[InterfaceDetails]:
+        """Return the interface details."""
+        return self._interface
+
+    @property
+    def storage(self) -> list[StorageDetails]:
+        """Return the storage details."""
+        return self._storage
